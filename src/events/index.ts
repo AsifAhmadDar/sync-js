@@ -3,7 +3,7 @@ import type { Listener, AsyncListener } from '../types.js';
 /**
  * A strongly-typed event emitter with support for async listeners
  */
-export class EventBus<TEvents extends Record<string, any> = Record<string, any>> {
+export class EventBus<TEvents extends Record<string, unknown> = Record<string, unknown>> {
   private listeners: Map<keyof TEvents, Set<Listener>> = new Map();
   private asyncListeners: Map<keyof TEvents, Set<AsyncListener>> = new Map();
 
@@ -59,7 +59,9 @@ export class EventBus<TEvents extends Record<string, any> = Record<string, any>>
     if (listeners) {
       listeners.forEach((listener) => {
         try {
-          listener(data);
+          void Promise.resolve(listener(data)).catch((error: unknown) => {
+            console.error(`Error in listener for event ${String(event)}:`, error);
+          });
         } catch (error) {
           console.error(`Error in listener for event ${String(event)}:`, error);
         }
@@ -78,7 +80,9 @@ export class EventBus<TEvents extends Record<string, any> = Record<string, any>>
     if (syncListeners) {
       syncListeners.forEach((listener) => {
         try {
-          listener(data);
+          void Promise.resolve(listener(data)).catch((error: unknown) => {
+            console.error(`Error in listener for event ${String(event)}:`, error);
+          });
         } catch (error) {
           console.error(`Error in listener for event ${String(event)}:`, error);
         }

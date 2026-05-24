@@ -1,4 +1,4 @@
-import type { WorkflowStep, WorkflowContext } from '../types.js';
+import type { WorkflowStep, WorkflowContext, Listener } from '../types.js';
 import { CancellationTokenSource } from '../cancellation/index.js';
 import { EventBus } from '../events/index.js';
 
@@ -25,7 +25,7 @@ class WorkflowContextImpl implements WorkflowContext {
 /**
  * Events emitted by the workflow orchestrator
  */
-export interface WorkflowEvents extends Record<string, any> {
+export interface WorkflowEvents extends Record<string, unknown> {
   stepStart: { step: string };
   stepComplete: { step: string; duration: number };
   stepError: { step: string; error: Error };
@@ -138,7 +138,7 @@ export class WorkflowOrchestrator {
    * Subscribe to workflow events
    */
   on<K extends keyof WorkflowEvents>(event: K, listener: (data: WorkflowEvents[K]) => void): () => void {
-    return this.eventBus.on(event, listener as any);
+    return this.eventBus.on(event, listener as Listener<WorkflowEvents[K]>);
   }
 
   /**

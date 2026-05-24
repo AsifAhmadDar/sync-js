@@ -1,5 +1,5 @@
 import type { SynchronizationOptions } from '../types.js';
-import { createDeferred } from '../flow/index.js';
+
 
 /**
  * A mutual exclusion lock for synchronizing concurrent access
@@ -30,9 +30,9 @@ export class Mutex {
       };
 
       if (this.locked) {
-        this.queue.push(execute);
+        this.queue.push(() => { void execute(); });
       } else {
-        execute();
+        void execute();
       }
     });
   }
@@ -85,9 +85,9 @@ export class Semaphore {
       };
 
       if (this.permits > 0) {
-        execute();
+        void execute();
       } else {
-        this.queue.push(execute);
+        this.queue.push(() => { void execute(); });
       }
     });
   }

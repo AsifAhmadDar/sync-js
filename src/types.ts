@@ -10,7 +10,7 @@ export interface AsyncListener<T = unknown> {
   (event: T): Promise<void>;
 }
 
-export interface Middleware<TContext = Record<string, any>> {
+export interface Middleware<TContext = Record<string, unknown>> {
   (context: TContext, next: () => Promise<void>): Promise<void>;
 }
 
@@ -18,7 +18,8 @@ export interface LifecycleHook {
   (): void | Promise<void>;
 }
 
-export type CancellationReason = 'user' | 'timeout' | 'error' | 'other';
+// eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
+export type CancellationReason = 'user' | 'timeout' | 'error' | 'other' | string;
 
 export interface CancellationToken {
   readonly isCancellationRequested: boolean;

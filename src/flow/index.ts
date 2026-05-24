@@ -101,7 +101,7 @@ export class AsyncFlow {
     const source = new CancellationTokenSource();
     const token = timeout ? createTimeoutToken(timeout) : source.token;
 
-    const results: T[] = new Array(operations.length);
+    const results = new Array<T>(operations.length);
     const executing: Promise<void>[] = [];
 
     for (let i = 0; i < operations.length; i++) {
@@ -124,7 +124,7 @@ export class AsyncFlow {
 
       if (executing.length >= concurrency) {
         await Promise.race(executing);
-        executing.splice(
+        void executing.splice(
           executing.findIndex((p) => p === promise),
           1
         );

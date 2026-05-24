@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MiddlewareChain, createMiddlewareChain } from '../middleware/index.js';
+import { createMiddlewareChain } from '../src/middleware';
 
 describe('Middleware', () => {
   it('should execute middleware chain in order', async () => {
@@ -60,6 +60,7 @@ describe('Middleware', () => {
       })
       .use(async (ctx) => {
         ctx.order.push('2');
+        await Promise.resolve();
         // Don't call next
       })
       .use(async (ctx, next) => {

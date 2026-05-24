@@ -3,7 +3,7 @@ import type { Middleware } from '../types.js';
 /**
  * A middleware chain executor
  */
-export class MiddlewareChain<TContext extends Record<string, any> = Record<string, any>> {
+export class MiddlewareChain<TContext extends Record<string, unknown> = Record<string, unknown>> {
   private middlewares: Middleware<TContext>[] = [];
 
   /**
@@ -35,11 +35,7 @@ export class MiddlewareChain<TContext extends Record<string, any> = Record<strin
       const middleware = this.middlewares[i];
       if (!middleware) return;
 
-      try {
-        await middleware(context, () => dispatch(i + 1));
-      } catch (error) {
-        throw error;
-      }
+      await middleware(context, () => dispatch(i + 1));
     };
 
     await dispatch(0);
@@ -63,14 +59,14 @@ export class MiddlewareChain<TContext extends Record<string, any> = Record<strin
 /**
  * Create a new middleware chain
  */
-export function createMiddlewareChain<TContext extends Record<string, any>>(): MiddlewareChain<TContext> {
+export function createMiddlewareChain<TContext extends Record<string, unknown>>(): MiddlewareChain<TContext> {
   return new MiddlewareChain<TContext>();
 }
 
 /**
  * Compose multiple middlewares into a single middleware
  */
-export function composeMiddlewares<TContext extends Record<string, any>>(
+export function composeMiddlewares<TContext extends Record<string, unknown>>(
   ...middlewares: Middleware<TContext>[]
 ): Middleware<TContext> {
   return async (context, next) => {
