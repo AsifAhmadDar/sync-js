@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { CancellationTokenSource, createTimeoutToken, createAggregateToken } from '../cancellation/index.js';
+import {
+  CancellationTokenSource,
+  createTimeoutToken,
+  createAggregateToken,
+  CancellationTokenImpl,
+} from '../src/cancellation';
 
 describe('Cancellation', () => {
   it('should create and cancel tokens', () => {
@@ -15,7 +20,7 @@ describe('Cancellation', () => {
     const source = new CancellationTokenSource();
     const results: string[] = [];
 
-    source.token.onCancellationRequested((reason: any) => {
+    source.token.onCancellationRequested((reason: string) => {
       results.push(reason);
     });
 
@@ -48,7 +53,7 @@ describe('Cancellation', () => {
     source.cancel('test');
 
     expect(() => {
-      (source.token as any).throwIfCancellationRequested();
-    }).toThrow('CancellationError');
+      (source.token as CancellationTokenImpl).throwIfCancellationRequested();
+    }).toThrow('Operation cancelled: test');
   });
 });

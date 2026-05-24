@@ -1,14 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { EventBus } from '../events/index.js';
+import { EventBus } from '../src/events';
 
 describe('EventBus', () => {
   it('should emit and receive events', () => {
-    interface Events {
-      test: string;
-      count: number;
-    }
-
-    const bus = new EventBus<Events>();
+    const bus = new EventBus<Record<string, string>>();
     const results: string[] = [];
 
     bus.on('test', (event) => {
@@ -22,11 +17,7 @@ describe('EventBus', () => {
   });
 
   it('should support async listeners', async () => {
-    interface Events {
-      async: string;
-    }
-
-    const bus = new EventBus<Events>();
+    const bus = new EventBus<Record<string, string>>();
     const results: string[] = [];
 
     bus.onAsync('async', async (event) => {
@@ -40,11 +31,7 @@ describe('EventBus', () => {
   });
 
   it('should support once listeners', () => {
-    interface Events {
-      once: string;
-    }
-
-    const bus = new EventBus<Events>();
+    const bus = new EventBus<Record<string, string>>();
     const results: string[] = [];
 
     bus.once('once', (event) => {
@@ -58,11 +45,7 @@ describe('EventBus', () => {
   });
 
   it('should support unsubscribe', () => {
-    interface Events {
-      test: string;
-    }
-
-    const bus = new EventBus<Events>();
+    const bus = new EventBus<Record<string, string>>();
     const results: string[] = [];
 
     const unsubscribe = bus.on('test', (event) => {
@@ -77,11 +60,7 @@ describe('EventBus', () => {
   });
 
   it('should track listener count', () => {
-    interface Events {
-      test: string;
-    }
-
-    const bus = new EventBus<Events>();
+    const bus = new EventBus<Record<string, string>>();
 
     const unsub1 = bus.on('test', () => {});
     const unsub2 = bus.on('test', () => {});
