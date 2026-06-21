@@ -23,6 +23,7 @@ export class CancellationTokenImpl implements CancellationToken {
     this._isCancellationRequested = true;
     this._reason = reason;
     this._listeners.forEach((listener) => listener(reason));
+    this._listeners.clear();
   }
 
   onCancellationRequested(callback: (reason: CancellationReason) => void): void {

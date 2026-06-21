@@ -6,11 +6,26 @@ import type { Listener, AsyncListener } from '../types.js';
 export class EventBus<TEvents extends Record<string, unknown> = Record<string, unknown>> {
   private listeners: Map<keyof TEvents, Set<Listener>> = new Map();
   private asyncListeners: Map<keyof TEvents, Set<AsyncListener>> = new Map();
+  private maxListeners: number;
+
+  constructor(maxListeners: number = Infinity) {
+    this.maxListeners = maxListeners;
+  }
+
+  private checkMaxListeners(event: keyof TEvents): void {
+    const count = this.listenerCount(event);
+    if (count >= this.maxListeners) {
+      throw new Error(
+        `Max listeners (${this.maxListeners}) exceeded for event ${String(event)}. This may indicate a memory leak.`
+      );
+    }
+  }
 
   /**
    * Subscribe to an event
    */
   on<K extends keyof TEvents>(event: K, listener: Listener<TEvents[K]>): () => void {
+    this.checkMaxListeners(event);
     if (!this.listeners.has(event)) {
       this.listeners.set(event, new Set());
     }
@@ -27,6 +42,7 @@ export class EventBus<TEvents extends Record<string, unknown> = Record<string, u
    * Subscribe to an event with async support
    */
   onAsync<K extends keyof TEvents>(event: K, listener: AsyncListener<TEvents[K]>): () => void {
+    this.checkMaxListeners(event);
     if (!this.asyncListeners.has(event)) {
       this.asyncListeners.set(event, new Set());
     }

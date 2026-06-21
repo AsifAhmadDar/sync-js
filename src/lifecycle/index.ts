@@ -4,25 +4,23 @@ import type { LifecycleHook } from '../types.js';
  * Manages lifecycle hooks for an application or component
  */
 export class LifecycleManager {
-  private hooks: Map<string, LifecycleHook[]> = new Map();
+  private hooks: Map<string, Map<number, LifecycleHook>> = new Map();
+  private nextId = 0;
 
   /**
    * Register a hook for a lifecycle event
    */
   on(event: string, hook: LifecycleHook): () => void {
     if (!this.hooks.has(event)) {
-      this.hooks.set(event, []);
+      this.hooks.set(event, new Map());
     }
 
-    const array = this.hooks.get(event)!;
-    array.push(hook);
+    const id = this.nextId++;
+    this.hooks.get(event)!.set(id, hook);
 
     // Return unregister function
     return () => {
-      const index = array.indexOf(hook);
-      if (index > -1) {
-        array.splice(index, 1);
-      }
+      this.hooks.get(event)?.delete(id);
     };
   }
 
@@ -30,9 +28,10 @@ export class LifecycleManager {
    * Trigger a lifecycle event
    */
   async emit(event: string): Promise<void> {
-    const hooks = this.hooks.get(event) || [];
+    const hooks = this.hooks.get(event);
+    if (!hooks) return;
 
-    for (const hook of hooks) {
+    for (const hook of hooks.values()) {
       try {
         await Promise.resolve(hook());
       } catch (error) {
@@ -46,9 +45,10 @@ export class LifecycleManager {
    * Trigger a lifecycle event with error suppression
    */
   async emitSafe(event: string): Promise<void> {
-    const hooks = this.hooks.get(event) || [];
+    const hooks = this.hooks.get(event);
+    if (!hooks) return;
 
-    for (const hook of hooks) {
+    for (const hook of hooks.values()) {
       try {
         await Promise.resolve(hook());
       } catch (error) {
@@ -61,7 +61,7 @@ export class LifecycleManager {
    * Get the count of hooks for an event
    */
   count(event: string): number {
-    return this.hooks.get(event)?.length ?? 0;
+    return this.hooks.get(event)?.size ?? 0;
   }
 
   /**

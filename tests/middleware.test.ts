@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'vitest';
 import { createMiddlewareChain } from '../src/middleware';
 
 describe('Middleware', () => {

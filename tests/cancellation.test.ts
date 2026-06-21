@@ -1,59 +1,58 @@
-import { describe, it, expect } from 'vitest';
 import {
-  CancellationTokenSource,
-  createTimeoutToken,
-  createAggregateToken,
-  CancellationTokenImpl,
+    CancellationTokenSource,
+    createTimeoutToken,
+    createAggregateToken,
+    CancellationTokenImpl,
 } from '../src/cancellation';
 
 describe('Cancellation', () => {
-  it('should create and cancel tokens', () => {
-    const source = new CancellationTokenSource();
-    expect(source.token.isCancellationRequested).toBe(false);
+    it('should create and cancel tokens', () => {
+        const source = new CancellationTokenSource();
+        expect(source.token.isCancellationRequested).toBe(false);
 
-    source.cancel('user');
-    expect(source.token.isCancellationRequested).toBe(true);
-    expect(source.token.reason).toBe('user');
-  });
-
-  it('should notify on cancellation', () => {
-    const source = new CancellationTokenSource();
-    const results: string[] = [];
-
-    source.token.onCancellationRequested((reason: string) => {
-      results.push(reason);
+        source.cancel('user');
+        expect(source.token.isCancellationRequested).toBe(true);
+        expect(source.token.reason).toBe('user');
     });
 
-    source.cancel('test');
+    it('should notify on cancellation', () => {
+        const source = new CancellationTokenSource();
+        const results: string[] = [];
 
-    expect(results).toEqual(['test']);
-  });
+        source.token.onCancellationRequested((reason: string) => {
+            results.push(reason);
+        });
 
-  it('should create timeout tokens', async () => {
-    const token = createTimeoutToken(50);
+        source.cancel('test');
 
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    expect(token.isCancellationRequested).toBe(true);
-    expect(token.reason).toBe('timeout');
-  });
+        expect(results).toEqual(['test']);
+    });
 
-  it('should aggregate tokens', () => {
-    const source1 = new CancellationTokenSource();
-    const source2 = new CancellationTokenSource();
-    const aggregate = createAggregateToken(source1.token, source2.token);
+    it('should create timeout tokens', async () => {
+        const token = createTimeoutToken(50);
 
-    expect(aggregate.isCancellationRequested).toBe(false);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        expect(token.isCancellationRequested).toBe(true);
+        expect(token.reason).toBe('timeout');
+    });
 
-    source1.cancel('test');
-    expect(aggregate.isCancellationRequested).toBe(true);
-  });
+    it('should aggregate tokens', () => {
+        const source1 = new CancellationTokenSource();
+        const source2 = new CancellationTokenSource();
+        const aggregate = createAggregateToken(source1.token, source2.token);
 
-  it('should throw when checking cancellation', () => {
-    const source = new CancellationTokenSource();
-    source.cancel('test');
+        expect(aggregate.isCancellationRequested).toBe(false);
 
-    expect(() => {
-      (source.token as CancellationTokenImpl).throwIfCancellationRequested();
-    }).toThrow('Operation cancelled: test');
-  });
+        source1.cancel('test');
+        expect(aggregate.isCancellationRequested).toBe(true);
+    });
+
+    it('should throw when checking cancellation', () => {
+        const source = new CancellationTokenSource();
+        source.cancel('test');
+
+        expect(() => {
+            (source.token as CancellationTokenImpl).throwIfCancellationRequested();
+        }).toThrow('Operation cancelled: test');
+    });
 });

@@ -6,7 +6,7 @@ import { EventBus } from '../events/index.js';
  * Workflow context implementation
  */
 class WorkflowContextImpl implements WorkflowContext {
-  private _data: Record<string, unknown> = {};
+  private _data: Record<string, unknown> = Object.create(null);
   readonly cancellationToken = new CancellationTokenSource().token;
 
   get data(): Record<string, unknown> {
@@ -14,10 +14,16 @@ class WorkflowContextImpl implements WorkflowContext {
   }
 
   set(key: string, value: unknown): void {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      throw new Error(`Invalid key: ${key}`);
+    }
     this._data[key] = value;
   }
 
   get(key: string): unknown {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      return undefined;
+    }
     return this._data[key];
   }
 }
@@ -76,6 +82,11 @@ export class WorkflowOrchestrator {
       this.eventBus.emit('workflowStart', { stepCount: this.steps.length });
 
       for (const step of this.steps) {
+        // Check cancellation
+        if (ctx.cancellationToken.isCancellationRequested) {
+          throw new Error(`Workflow cancelled: ${ctx.cancellationToken.reason || 'unknown'}`);
+        }
+
         // Check if step can execute
         if (step.canExecute && !step.canExecute()) {
           continue;
@@ -90,21 +101,28 @@ export class WorkflowOrchestrator {
             this.eventBus.emit('stepStart', { step: step.name });
             const stepStartTime = Date.now();
 
+            let timeoutId: ReturnType<typeof setTimeout> | undefined;
             const timeoutPromise = step.timeout
-              ? new Promise<void>((_, reject) =>
-                  setTimeout(
+              ? new Promise<void>((_, reject) => {
+                  timeoutId = setTimeout(
                     () => reject(new Error(`Step timeout: ${step.name}`)),
                     step.timeout
-                  )
-                )
+                  );
+                })
               : null;
 
             const executePromise = Promise.resolve(step.execute());
 
-            if (timeoutPromise) {
-              await Promise.race([executePromise, timeoutPromise]);
-            } else {
-              await executePromise;
+            try {
+              if (timeoutPromise) {
+                await Promise.race([executePromise, timeoutPromise]);
+              } else {
+                await executePromise;
+              }
+            } finally {
+              if (timeoutId !== undefined) {
+                clearTimeout(timeoutId);
+              }
             }
 
             const duration = Date.now() - stepStartTime;

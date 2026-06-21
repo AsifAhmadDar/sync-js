@@ -1,5 +1,5 @@
 import type { CancellationToken, FlowOptions } from '../types.js';
-import { CancellationTokenSource, createTimeoutToken } from '../cancellation/index.js';
+import { CancellationTokenSource } from '../cancellation/index.js';
 
 /**
  * Executes an async flow with optional timeout and retry logic
@@ -14,13 +14,18 @@ export class AsyncFlow {
   ): Promise<T> {
     const { timeout, maxRetries = 1, onError } = options;
 
+    const source = new CancellationTokenSource();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (timeout) {
+      timer = setTimeout(() => source.cancel('timeout'), timeout);
+    }
+
     let lastError: Error | undefined;
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
-        const token = timeout ? createTimeoutToken(timeout) : new CancellationTokenSource().token;
-
-        const result = await operation(token);
+        const result = await operation(source.token);
+        if (timer) clearTimeout(timer);
         return result;
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
@@ -33,9 +38,12 @@ export class AsyncFlow {
           }
         }
 
-        if (attempt < maxRetries - 1) {
+        if (attempt < maxRetries - 1 && !source.token.isCancellationRequested) {
           // Wait before retrying (exponential backoff)
           await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 100));
+        } else {
+          if (timer) clearTimeout(timer);
+          break;
         }
       }
     }
@@ -51,11 +59,15 @@ export class AsyncFlow {
     timeout?: number
   ): Promise<T> {
     const source = new CancellationTokenSource();
-    const token = timeout ? createTimeoutToken(timeout) : source.token;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (timeout) {
+      timer = setTimeout(() => source.cancel('timeout'), timeout);
+    }
 
     try {
-      return await Promise.race(operations.map((op) => op(token)));
+      return await Promise.race(operations.map((op) => op(source.token)));
     } finally {
+      if (timer) clearTimeout(timer);
       source.cancel('other');
     }
   }
@@ -69,21 +81,28 @@ export class AsyncFlow {
   ): Promise<T[]> {
     const { timeout } = options;
     const source = new CancellationTokenSource();
-    const token = timeout ? createTimeoutToken(timeout) : source.token;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (timeout) {
+      timer = setTimeout(() => source.cancel('timeout'), timeout);
+    }
 
     const results: T[] = [];
 
-    for (const operation of operations) {
-      if (token.isCancellationRequested) {
-        break;
+    try {
+      for (const operation of operations) {
+        if (source.token.isCancellationRequested) {
+          break;
+        }
+        try {
+          const result = await operation(source.token);
+          results.push(result);
+        } catch (error) {
+          source.cancel('error');
+          throw error;
+        }
       }
-      try {
-        const result = await operation(token);
-        results.push(result);
-      } catch (error) {
-        source.cancel('error');
-        throw error;
-      }
+    } finally {
+      if (timer) clearTimeout(timer);
     }
 
     return results;
@@ -99,39 +118,48 @@ export class AsyncFlow {
   ): Promise<T[]> {
     const { timeout } = options;
     const source = new CancellationTokenSource();
-    const token = timeout ? createTimeoutToken(timeout) : source.token;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (timeout) {
+      timer = setTimeout(() => source.cancel('timeout'), timeout);
+    }
 
     const results = new Array<T>(operations.length);
     const executing: Promise<void>[] = [];
 
-    for (let i = 0; i < operations.length; i++) {
-      const operation = operations[i];
-      const index = i;
+    try {
+      for (let i = 0; i < operations.length; i++) {
+        const operation = operations[i];
+        const index = i;
 
-      const promise = Promise.resolve().then(async () => {
-        if (token.isCancellationRequested) {
-          return;
+        const promise = Promise.resolve().then(async () => {
+          if (source.token.isCancellationRequested) {
+            return;
+          }
+          try {
+            results[index] = await operation(source.token);
+          } catch (error) {
+            source.cancel('error');
+            throw error;
+          }
+        }).finally(() => {
+          const idx = executing.indexOf(promise);
+          if (idx > -1) {
+            executing.splice(idx, 1);
+          }
+        });
+
+        executing.push(promise);
+
+        if (executing.length >= concurrency) {
+          await Promise.race(executing);
         }
-        try {
-          results[index] = await operation(token);
-        } catch (error) {
-          source.cancel('error');
-          throw error;
-        }
-      });
-
-      executing.push(promise);
-
-      if (executing.length >= concurrency) {
-        await Promise.race(executing);
-        void executing.splice(
-          executing.findIndex((p) => p === promise),
-          1
-        );
       }
+
+      await Promise.all(executing);
+    } finally {
+      if (timer) clearTimeout(timer);
     }
 
-    await Promise.all(executing);
     return results;
   }
 }
